@@ -40,7 +40,7 @@ export class StatusStack extends cdk.Stack {
           OwnerUid: 1000,
           Permissions: '755'
         },
-        Path: '/'
+        Path: '/app/data'
       },
       Tags: [
         {
