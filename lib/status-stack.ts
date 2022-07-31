@@ -40,7 +40,7 @@ export class StatusStack extends cdk.Stack {
           OwnerUid: 1000,
           Permissions: '755'
         },
-        Path: '/app/data'
+        Path: '/'
       },
       Tags: [
         {
@@ -125,7 +125,7 @@ export class StatusStack extends cdk.Stack {
       EcsService: albFargateService.service.serviceName,
       EcsCluster: ecsCluster.clusterName,
       EfsFileSystemId: fileSystem.fileSystemId,
-      EfsMountName: 'data'
+      EfsMountName: 'app'
     });
 
     resource.node.addDependency(albFargateService);
