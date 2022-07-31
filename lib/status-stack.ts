@@ -109,7 +109,7 @@ export class StatusStack extends cdk.Stack {
 
     albFargateService.targetGroup.setAttribute('deregistration_delay.timeout_seconds', '30');
     albFargateService.targetGroup.configureHealthCheck({
-      healthyHttpCodes: this.node.tryGetContext('Status_health_check_port')
+      healthyHttpCodes: this.node.tryGetContext('status_health_check_port')
     })
 
     // Override Platform version (until Latest = 1.4.0)
