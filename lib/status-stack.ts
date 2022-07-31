@@ -68,7 +68,7 @@ export class StatusStack extends cdk.Stack {
     });
 
     const containerDef = new ecs.ContainerDefinition(this, "StatusContainerDef", {
-      image: ecs.ContainerImage.fromRegistry("louislam/uptime-kuma:1"),
+      image: ecs.ContainerImage.fromRegistry("louislam/uptime-kuma"),
       taskDefinition: taskDef
     });
 
