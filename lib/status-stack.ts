@@ -80,7 +80,7 @@ export class StatusStack extends cdk.Stack {
     const albFargateService = new ecs_patterns.ApplicationLoadBalancedFargateService(this, 'Service01', {
       cluster: ecsCluster,
       taskDefinition: taskDef,
-      desiredCount: 2,
+      desiredCount: 1,
       listenerPort: 443,
       certificate: cert,
       redirectHTTP: true,
@@ -89,8 +89,8 @@ export class StatusStack extends cdk.Stack {
     });
 
     const scalableTarget = albFargateService.service.autoScaleTaskCount({
-      minCapacity: 2,
-      maxCapacity: 4,
+      minCapacity: 1,
+      maxCapacity: 2,
     });
 
     scalableTarget.scaleOnCpuUtilization('CpuScaling', {
