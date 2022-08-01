@@ -125,7 +125,7 @@ export class StatusStack extends cdk.Stack {
       EcsService: albFargateService.service.serviceName,
       EcsCluster: ecsCluster.clusterName,
       EfsFileSystemId: fileSystem.fileSystemId,
-      EfsMountName: 'app/data'
+      EfsMountName: 'data'
     });
 
     resource.node.addDependency(albFargateService);
