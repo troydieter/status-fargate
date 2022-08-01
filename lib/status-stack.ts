@@ -17,6 +17,7 @@ export class StatusStack extends cdk.Stack {
     const vpc = new ec2.Vpc(this, 'Statusvpc', {
       cidr: this.node.tryGetContext('fargate_vpc_cidr')
     });
+    const {az, region, account} = props;
     const ecsCluster = new ecs.Cluster(this, 'StatusECSCluster', { vpc: vpc });
 
     const fileSystem = new efs.FileSystem(this, 'StatusEFSFileSystem', {
@@ -27,49 +28,37 @@ export class StatusStack extends cdk.Stack {
       throughputMode: efs.ThroughputMode.BURSTING
     });
 
-
-    const params = {
-      FileSystemId: fileSystem.fileSystemId,
-      PosixUser: {
-        Gid: 1000,
-        Uid: 1000
-      },
-      RootDirectory: {
-        CreationInfo: {
-          OwnerGid: 1000,
-          OwnerUid: 1000,
-          Permissions: '755'
-        },
-        Path: '/'
-      },
-      Tags: [
-        {
-          Key: 'Name',
-          Value: 'status-data'
-        }
-      ]
-    };
-
-    const efsAccessPoint = new cr.AwsCustomResource(this, 'EfsAccessPoint', {
-      onUpdate: {
-        service: 'EFS',
-        action: 'createAccessPoint',
-        parameters: params,
-        physicalResourceId: cr.PhysicalResourceId.of('12121212121'),
-      },
-      policy: cr.AwsCustomResourcePolicy.fromSdkCalls({ resources: cr.AwsCustomResourcePolicy.ANY_RESOURCE })
+    const accessPoint = new efs.AccessPoint(this, 'AccessPoint', {
+      fileSystem: fileSystem,
     });
-
-    efsAccessPoint.node.addDependency(fileSystem);
+    const volumeName = 'efs-volume';
 
     const taskDef = new ecs.FargateTaskDefinition(this, "StatusTaskDef", {
       cpu: 512,
       memoryLimitMiB: 1024,
     });
 
+    taskDef.addVolume({
+      name: volumeName,
+      efsVolumeConfiguration: {
+        fileSystemId: fileSystem.fileSystemId,
+        transitEncryption: 'ENABLED',
+        authorizationConfig:{
+          accessPointId: accessPoint.accessPointId,
+          iam: 'ENABLED'
+        }
+      }
+    });
+
     const containerDef = new ecs.ContainerDefinition(this, "StatusContainerDef", {
       image: ecs.ContainerImage.fromRegistry("louislam/uptime-kuma:latest"),
       taskDefinition: taskDef
+    });
+
+    containerDef.addMountPoints({
+      containerPath: '/app/data',
+      sourceVolume: volumeName,
+      readOnly: false
     });
 
     containerDef.addPortMappings({
@@ -119,15 +108,24 @@ export class StatusStack extends cdk.Stack {
     // Allow access to EFS from Fargate ECS
     fileSystem.connections.allowDefaultPortFrom(albFargateService.service.connections);
 
-    //Custom Resource to add EFS Mount to Task Definition
-    const resource = new FargateEfsCustomResource(this, 'FargateEfsCustomResource', {
-      TaskDefinition: taskDef.taskDefinitionArn,
-      EcsService: albFargateService.service.serviceName,
-      EcsCluster: ecsCluster.clusterName,
-      EfsFileSystemId: fileSystem.fileSystemId,
-      EfsMountName: 'data'
-    });
 
-    resource.node.addDependency(albFargateService);
+    taskDef.addToTaskRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          'elasticfilesystem:ClientRootAccess',
+          'elasticfilesystem:ClientWrite',
+          'elasticfilesystem:ClientMount',
+          'elasticfilesystem:DescribeMountTargets'
+        ],
+        resources: [`arn:aws:elasticfilesystem:${region}:${account}:file-system/${fileSystem.fileSystemId}`]
+      })
+    );
+    
+    taskDef.addToTaskRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['ec2:DescribeAvailabilityZones'],
+        resources: ['*']
+      })
+    );
   }
 }
