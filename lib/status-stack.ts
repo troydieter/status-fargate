@@ -3,11 +3,11 @@ import { Certificate, CertificateValidation, isDnsValidatedCertificate } from 'a
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import { Protocol } from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as iam from 'aws-cdk-lib/aws-iam'
 import * as ecs_patterns from 'aws-cdk-lib/aws-ecs-patterns';
 import * as efs from 'aws-cdk-lib/aws-efs';
 import { HostedZone } from 'aws-cdk-lib/aws-route53';
 import * as cr from 'aws-cdk-lib/custom-resources';
-import { FargateEfsCustomResource } from "./efs-mount-fargate-cr";
 
 
 export class StatusStack extends cdk.Stack {
@@ -17,7 +17,7 @@ export class StatusStack extends cdk.Stack {
     const vpc = new ec2.Vpc(this, 'Statusvpc', {
       cidr: this.node.tryGetContext('fargate_vpc_cidr')
     });
-    const {az, region, account} = props;
+
     const ecsCluster = new ecs.Cluster(this, 'StatusECSCluster', { vpc: vpc });
 
     const fileSystem = new efs.FileSystem(this, 'StatusEFSFileSystem', {
@@ -25,7 +25,8 @@ export class StatusStack extends cdk.Stack {
       encrypted: true,
       lifecyclePolicy: efs.LifecyclePolicy.AFTER_14_DAYS,
       performanceMode: efs.PerformanceMode.GENERAL_PURPOSE,
-      throughputMode: efs.ThroughputMode.BURSTING
+      throughputMode: efs.ThroughputMode.BURSTING,
+      enableAutomaticBackups: true
     });
 
     const accessPoint = new efs.AccessPoint(this, 'AccessPoint', {
@@ -117,7 +118,7 @@ export class StatusStack extends cdk.Stack {
           'elasticfilesystem:ClientMount',
           'elasticfilesystem:DescribeMountTargets'
         ],
-        resources: [`arn:aws:elasticfilesystem:${region}:${account}:file-system/${fileSystem.fileSystemId}`]
+        resources: [`arn:aws:elasticfilesystem:${process.env.CDK_DEFAULT_REGION}:${process.env.CDK_DEFAULT_ACCOUNT}:file-system/${fileSystem.fileSystemId}`]
       })
     );
     
